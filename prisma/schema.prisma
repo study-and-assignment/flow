@@ -13,23 +13,25 @@ datasource db {
 // 기본값은 체크 해제 상태 (isBlocked = false)
 model FixedExtension {
   id        String    @id @default(uuid())
-  extension String    @unique // 확장자명 (예: exe, sh, bat)
+  extension String    // 확장자명 (예: exe, sh, bat) - Partial Unique Index로 관리
   isBlocked Boolean   @default(false) @map("is_blocked")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at") // Soft Delete
 
   @@map("fixed_extensions")
+  // ⚠️ Partial Unique Index는 마이그레이션에서 수동 SQL로 추가
 }
 
 // 커스텀 확장자 (사용자가 직접 추가한 확장자)
 // 최대 200개, 확장자 길이 최대 20자
 model CustomExtension {
   id        String    @id @default(uuid())
-  extension String    @unique // 확장자명 (최대 20자)
+  extension String    // 확장자명 (최대 20자) - Partial Unique Index로 관리
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at") // Soft Delete
 
   @@map("custom_extensions")
+  // ⚠️ Partial Unique Index는 마이그레이션에서 수동 SQL로 추가
 }

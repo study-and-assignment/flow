@@ -1,4 +1,4 @@
-import { prisma, prismaRaw } from "@/server/lib/prisma";
+import { prisma } from "@/server/lib/prisma";
 
 /**
  * 커스텀 확장자 Repository
@@ -11,9 +11,9 @@ export const customExtensionRepository = {
       orderBy: { createdAt: "desc" },
     }),
 
-  /** 확장자로 조회 (soft delete 포함 - 복구용) */
-  findByExtensionIncludeDeleted: (extension: string) =>
-    prismaRaw.customExtension.findUnique({
+  /** 확장자로 조회 (활성 상태만 - soft delete 자동 제외) */
+  findByExtension: (extension: string) =>
+    prisma.customExtension.findFirst({
       where: { extension },
     }),
 
@@ -26,13 +26,6 @@ export const customExtensionRepository = {
       data: { extension },
     }),
 
-  /** 복구 (soft delete 해제) */
-  restore: (id: string) =>
-    prisma.customExtension.update({
-      where: { id },
-      data: { deletedAt: null },
-    }),
-
   /** Soft Delete */
   softDelete: (id: string) =>
     prisma.customExtension.update({
@@ -40,4 +33,3 @@ export const customExtensionRepository = {
       data: { deletedAt: new Date() },
     }),
 };
-

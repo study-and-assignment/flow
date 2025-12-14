@@ -77,30 +77,50 @@ src/
 npm install
 ```
 
-### 2. 환경 변수 설정
+### 2. 로컬 데이터베이스 실행 (Docker)
+
+```bash
+docker-compose up -d
+```
+
+### 3. 환경 변수 설정
 
 `.env.local` 파일 생성:
 
 ```env
-DATABASE_URL="postgresql://..."
+# 로컬 개발용 (Docker)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/flow_dev"
 ```
 
-### 3. 데이터베이스 마이그레이션
+### 4. 데이터베이스 마이그레이션
 
 ```bash
 npx prisma migrate dev
 ```
 
-### 4. 시드 데이터 추가
+### 5. 시드 데이터 추가
 
 ```bash
 npm run db:seed
 ```
 
-### 5. 개발 서버 실행
+### 6. 개발 서버 실행
 
 ```bash
 npm run dev
+```
+
+### 🐳 Docker 명령어
+
+```bash
+# DB 시작
+docker-compose up -d
+
+# DB 중지
+docker-compose down
+
+# DB 초기화 (데이터 삭제)
+docker-compose down -v
 ```
 
 ---
