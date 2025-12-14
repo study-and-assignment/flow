@@ -1,0 +1,128 @@
+---
+description: 파일 확장자 차단 시스템 프로젝트 규칙
+globs: 
+alwaysApply: true
+---
+
+# 파일 확장자 차단 시스템 - Cursor 규칙
+
+## 프로젝트 개요
+Next.js 15 풀스택 애플리케이션 (App Router)
+파일 첨부 시 특정 확장자를 차단하는 웹 서비스
+
+## 기술 스택
+- Frontend: Next.js 15, React 19, TypeScript, TailwindCSS, shadcn/ui
+- Backend: Next.js API Routes, Prisma ORM v7
+- Database: PostgreSQL (Neon Serverless)
+- Deploy: Vercel
+
+## 프로젝트 구조
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── page.tsx            # FE 메인 페이지
+│   └── api/                # API Routes (Controller)
+├── components/ui/          # shadcn/ui 컴포넌트
+├── lib/                    # FE 유틸리티 (utils.ts)
+├── server/                 # BE 전용
+│   ├── lib/                # prisma, assert, api-handler, api-response
+│   ├── repositories/       # DB 접근 계층
+│   └── services/           # 비즈니스 로직 계층
+└── shared/                 # FE + BE 공용
+    ├── constants/          # 상수
+    └── types/              # 타입 정의
+```
+
+## 레이어 규칙
+
+### Controller (API Route)
+- HTTP 요청/응답 처리만
+- 비즈니스 로직 없음
+- withErrorHandler로 래핑
+- assert로 검증
+- ApiResponse로 응답
+
+### Service
+- 비즈니스 로직 담당
+- 유효성 검사 (assert)
+- 여러 Repository 조합 가능
+
+### Repository
+- DB CRUD만 담당
+- Prisma 호출 래핑
+- 비즈니스 로직 없음
+
+## 타입 공유 규칙 (중요!)
+
+FE에서 타입 중복 정의 금지! 반드시 shared에서 import:
+
+```typescript
+// ✅ Good
+import type { CustomExtension } from "@/shared/types/extension.types";
+
+// ❌ Bad - 중복 정의 금지!
+interface CustomExtension { ... }
+```
+
+## 네이밍 컨벤션
+
+### TypeScript
+- 변수/함수: camelCase
+- 상수: UPPER_SNAKE_CASE
+- 타입/인터페이스: PascalCase
+- API 핸들러: GET, POST, PATCH, DELETE
+
+### 파일명
+- 컴포넌트: kebab-case.tsx
+- 서비스: *.service.ts
+- 레포지토리: *.repository.ts
+- 타입: *.types.ts
+- 상수: *.constants.ts
+
+### Database (PostgreSQL)
+- 테이블명: snake_case (예: custom_extensions)
+- 컬럼명: snake_case (예: deleted_at)
+
+## 코드 패턴
+
+### API Route 작성
+```typescript
+import { withErrorHandler } from "@/server/lib/api-handler";
+import { ApiResponse } from "@/server/lib/api-response";
+import { assert } from "@/server/lib/assert";
+
+export const POST = withErrorHandler(async (request: Request) => {
+  const { data } = await request.json();
+  assert(!!data, "데이터 필요");
+  
+  const result = await someService.create(data);
+  return ApiResponse.created(result);
+});
+```
+
+### assert 사용
+```typescript
+assert(condition, "에러 메시지");           // 400
+assert(condition, "에러 메시지", 409);      // 커스텀 상태 코드
+```
+
+## Soft Delete 정책
+
+- deletedAt 필드 사용 (null = 활성, Date = 삭제)
+- Prisma Extension으로 조회 시 자동 필터링
+- 삭제된 항목 재추가 시 복구 (deletedAt = null)
+
+## 금지 사항
+
+1. any 타입 사용 금지
+2. console.log 배포 금지 (console.error만 에러 핸들러에서)
+3. 하드코딩 금지 (상수 파일로 분리)
+4. 인라인 스타일 금지 (TailwindCSS 사용)
+5. .then() 사용 금지 (async/await 사용)
+6. FE에서 타입 중복 정의 금지 (@/shared/types에서 import)
+
+## 응답 형식
+
+- 성공: ApiResponse.success(data) / ApiResponse.created(data)
+- 에러: { "error": "에러 메시지" }
