@@ -1,4 +1,4 @@
-import { prisma } from "@/server/lib/prisma";
+import { prisma, prismaRaw } from "@/server/lib/prisma";
 
 /**
  * 커스텀 확장자 Repository
@@ -13,7 +13,7 @@ export const customExtensionRepository = {
 
   /** 확장자로 조회 (soft delete 포함 - 복구용) */
   findByExtensionIncludeDeleted: (extension: string) =>
-    prisma.customExtension.findUnique({
+    prismaRaw.customExtension.findUnique({
       where: { extension },
     }),
 

@@ -50,5 +50,8 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma = globalForPrisma.prisma ?? prismaWithSoftDelete;
 
+// Soft Delete 필터링 없는 Prisma (삭제된 항목 조회용)
+export const prismaRaw = basePrisma;
+
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
