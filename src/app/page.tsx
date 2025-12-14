@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 
 // ✅ shared 타입 사용 - BE와 동일한 타입!
 import type { FixedExtension, CustomExtension } from "@/shared/types/extension.types";
@@ -17,6 +17,11 @@ export default function Home() {
   const [newExtension, setNewExtension] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // 로딩 상태들
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [isAdding, setIsAdding] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // 데이터 로드
   useEffect(() => {
@@ -44,6 +49,8 @@ export default function Home() {
 
   // 고정 확장자 체크 상태 변경
   const handleFixedToggle = async (id: string, isBlocked: boolean) => {
+    setTogglingIds((prev) => new Set(prev).add(id));
+
     try {
       const res = await fetch("/api/extensions/fixed", {
         method: "PATCH",
@@ -58,6 +65,12 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Failed to update extension:", err);
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -69,6 +82,8 @@ export default function Home() {
       setError("확장자를 입력해주세요.");
       return;
     }
+
+    setIsAdding(true);
 
     try {
       const res = await fetch("/api/extensions/custom", {
@@ -89,11 +104,15 @@ export default function Home() {
     } catch (err) {
       console.error("Failed to add extension:", err);
       setError("확장자 추가에 실패했습니다.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
   // 커스텀 확장자 삭제
   const handleDeleteCustom = async (id: string) => {
+    setDeletingIds((prev) => new Set(prev).add(id));
+
     try {
       const res = await fetch(`/api/extensions/custom?id=${id}`, {
         method: "DELETE",
@@ -104,12 +123,18 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Failed to delete extension:", err);
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
   // Enter 키로 추가
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isAdding) {
       handleAddCustom();
     }
   };
@@ -117,7 +142,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">로딩 중...</div>
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     );
   }
@@ -154,20 +179,30 @@ export default function Home() {
                 고정 확장자
               </h2>
               <div className="flex flex-wrap gap-4">
-                {fixedExtensions.map((ext) => (
-                  <label
-                    key={ext.id}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={ext.isBlocked}
-                      onCheckedChange={(checked) =>
-                        handleFixedToggle(ext.id, checked as boolean)
-                      }
-                    />
-                    <span className="text-sm text-slate-600">{ext.extension}</span>
-                  </label>
-                ))}
+                {fixedExtensions.map((ext) => {
+                  const isToggling = togglingIds.has(ext.id);
+                  return (
+                    <label
+                      key={ext.id}
+                      className={`flex items-center gap-2 ${
+                        isToggling ? "opacity-50 cursor-wait" : "cursor-pointer"
+                      }`}
+                    >
+                      {isToggling ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                      ) : (
+                        <Checkbox
+                          checked={ext.isBlocked}
+                          onCheckedChange={(checked) =>
+                            handleFixedToggle(ext.id, checked as boolean)
+                          }
+                          disabled={isToggling}
+                        />
+                      )}
+                      <span className="text-sm text-slate-600">{ext.extension}</span>
+                    </label>
+                  );
+                })}
               </div>
             </section>
 
@@ -185,8 +220,18 @@ export default function Home() {
                   onKeyDown={handleKeyDown}
                   maxLength={20}
                   className="flex-1"
+                  disabled={isAdding}
                 />
-                <Button onClick={handleAddCustom}>추가</Button>
+                <Button onClick={handleAddCustom} disabled={isAdding}>
+                  {isAdding ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      추가 중
+                    </>
+                  ) : (
+                    "추가"
+                  )}
+                </Button>
               </div>
               {error && (
                 <p className="text-sm text-red-500 mt-2">{error}</p>
@@ -210,22 +255,32 @@ export default function Home() {
                 {customExtensions.length === 0 ? (
                   <p className="text-sm text-slate-400">등록된 커스텀 확장자가 없습니다.</p>
                 ) : (
-                  customExtensions.map((ext) => (
-                    <Badge
-                      key={ext.id}
-                      variant="outline"
-                      className="px-3 py-1.5 text-sm flex items-center gap-1 bg-white"
-                    >
-                      {ext.extension}
-                      <button
-                        onClick={() => handleDeleteCustom(ext.id)}
-                        className="ml-1 hover:text-red-500 transition-colors"
-                        aria-label={`${ext.extension} 삭제`}
+                  customExtensions.map((ext) => {
+                    const isDeleting = deletingIds.has(ext.id);
+                    return (
+                      <Badge
+                        key={ext.id}
+                        variant="outline"
+                        className={`px-3 py-1.5 text-sm flex items-center gap-1 bg-white ${
+                          isDeleting ? "opacity-50" : ""
+                        }`}
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))
+                        {ext.extension}
+                        <button
+                          onClick={() => handleDeleteCustom(ext.id)}
+                          className="ml-1 hover:text-red-500 transition-colors disabled:cursor-wait"
+                          aria-label={`${ext.extension} 삭제`}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <X className="h-3 w-3" />
+                          )}
+                        </button>
+                      </Badge>
+                    );
+                  })
                 )}
               </div>
             </section>
